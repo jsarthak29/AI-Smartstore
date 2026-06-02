@@ -1,0 +1,60 @@
+# Render Blueprint for SmartStore AI backend.
+#
+# One-click deploy: connect this repo to Render, pick "New +" -> "Blueprint",
+# then fill in the env vars marked `sync: false` in the dashboard (Supabase
+# connection string, JWT secret, Gemini API key, frontend origin, seed
+# passwords). The database itself lives on Supabase, not Render.
+#
+# Note: the Dockerfile's CMD already runs `alembic upgrade head &&
+# python -m app.seed && uvicorn ...` so migrations + seed happen on every boot
+# (seed is idempotent). No separate pre-deploy step needed.
+
+services:
+  - type: web
+    name: smartstore-backend
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    # Note: Render free plan does not support persistent disks. Uploaded
+    # invoices are written to the ephemeral container filesystem and lost
+    # on redeploy / sleep. Fine for a demo. To persist, switch `plan: free`
+    # to `plan: starter` and uncomment the disk block:
+    # disk:
+    #   name: uploads
+    #   mountPath: /app/uploads
+    #   sizeGB: 1
+    envVars:
+      # --- secrets / per-deploy (user fills these in the dashboard) ---
+      - key: DATABASE_URL
+        sync: false  # e.g. postgresql://postgres:[PW]@db.[PROJECT].supabase.co:5432/postgres
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false  # e.g. https://your-frontend.vercel.app
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_STAFF_PASSWORD
+        sync: false
+
+      # --- sensible defaults (override in dashboard if needed) ---
+      - key: JWT_ACCESS_MINUTES
+        value: "30"
+      - key: JWT_REFRESH_DAYS
+        value: "7"
+      - key: GEMINI_CHAT_MODEL
+        value: gemini-2.0-flash
+      - key: GEMINI_VISION_MODEL
+        value: gemini-2.0-flash
+      - key: UPLOAD_DIR
+        value: /app/uploads
+      - key: SEED_TENANT_NAME
+        value: Raj Grocery
+      - key: SEED_ADMIN_EMAIL
+        value: admin@smartstore.app
+      - key: SEED_STAFF_EMAIL
+        value: staff@smartstore.app
