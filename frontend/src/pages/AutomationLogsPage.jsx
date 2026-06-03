@@ -2,12 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { automationApi } from '../api/resources.js'
 import EmptyState from '../components/EmptyState.jsx'
+import { useAuthStore } from '../store/authStore.js'
 
 const JOBS = ['low_stock_agent', 'weekly_summary_agent', 'expiry_agent']
 
 export default function AutomationLogsPage() {
   const qc = useQueryClient()
-  const isAdmin = true  // auth disabled for demo
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'admin'
   const { data: logs, isLoading } = useQuery({ queryKey: ['automation-logs'], queryFn: automationApi.logs })
 
   const trigger = useMutation({

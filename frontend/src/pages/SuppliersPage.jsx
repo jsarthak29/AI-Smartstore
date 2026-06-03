@@ -3,10 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { suppliersApi } from '../api/resources.js'
 import EmptyState from '../components/EmptyState.jsx'
+import { useAuthStore } from '../store/authStore.js'
 
 export default function SuppliersPage() {
   const qc = useQueryClient()
-  const isAdmin = true  // auth disabled for demo
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'admin'
   const { data, isLoading } = useQuery({ queryKey: ['suppliers'], queryFn: suppliersApi.list })
   const [form, setForm] = useState({ name: '', email: '', categories: '', lead_time_days: 7 })
   const [errors, setErrors] = useState({})
@@ -35,6 +37,8 @@ export default function SuppliersPage() {
     const e = {}
     if (!form.name) e.name = 'required'
     if (!form.email.includes('@')) e.email = 'invalid email'
+    const ld = Number(form.lead_time_days)
+    if (!Number.isFinite(ld) || ld < 1) e.lead_time_days = 'must be ≥ 1'
     setErrors(e)
     if (Object.keys(e).length) return
     create.mutate({
@@ -67,7 +71,8 @@ export default function SuppliersPage() {
           </div>
           <div>
             <label className="label">Lead days</label>
-            <input type="number" className="input" value={form.lead_time_days} onChange={(e) => setForm({ ...form, lead_time_days: e.target.value })} />
+            <input type="number" min="1" className="input" value={form.lead_time_days} onChange={(e) => setForm({ ...form, lead_time_days: e.target.value })} />
+            {errors.lead_time_days && <p className="text-xs text-red-600">{errors.lead_time_days}</p>}
           </div>
           <div className="sm:col-span-5">
             <button className="btn-primary">+ Add supplier</button>

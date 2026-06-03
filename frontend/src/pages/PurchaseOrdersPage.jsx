@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { posApi, productsApi, suppliersApi } from '../api/resources.js'
 import EmptyState from '../components/EmptyState.jsx'
+import { useAuthStore } from '../store/authStore.js'
 
 const STATUS_NEXT = { draft: 'sent', sent: 'acknowledged', acknowledged: 'received' }
 const STATUS_CLASS = {
@@ -77,7 +78,8 @@ function POForm({ suppliers, products, onCreated }) {
 
 export default function PurchaseOrdersPage() {
   const qc = useQueryClient()
-  const isAdmin = true  // auth disabled for demo
+  const user = useAuthStore((s) => s.user)
+  const isAdmin = user?.role === 'admin'
   const [supplierFilter, setSupplierFilter] = useState('')
 
   const { data: pos, isLoading } = useQuery({
