@@ -45,7 +45,10 @@ def _to_async_postgres_url(plain_url: str) -> str:
     """Convert a plain postgresql:// URL to postgresql+asyncpg:// with ssl=require.
 
     asyncpg uses `ssl=require` (not `sslmode=require`). Also drops `sslmode`
-    if present, since asyncpg doesn't understand it.
+    if present, since asyncpg doesn't understand it. When the URL points at
+    Supabase's transaction-mode pooler (port 6543), prepared statements must
+    be disabled (`statement_cache_size=0`) because each transaction may land
+    on a different backend connection.
     """
     base = _strip_driver(plain_url)  # postgresql://...
     # Swap scheme to postgresql+asyncpg
@@ -53,9 +56,17 @@ def _to_async_postgres_url(plain_url: str) -> str:
     async_scheme = "postgresql+asyncpg"
     base = urlunsplit((async_scheme, parts.netloc, parts.path, parts.query, parts.fragment))
     # Only attach SSL for real hosts (not the docker-compose 'postgres' host).
-    host = urlsplit(base).hostname or ""
+    parts2 = urlsplit(base)
+    host = parts2.hostname or ""
+    port = parts2.port
     if host and host not in ("postgres", "localhost", "127.0.0.1"):
         base = _set_query_param(base, "ssl", "require", remove_keys=("sslmode",))
+    # Supabase transaction-mode pooler runs on 6543 and rotates backend
+    # connections per transaction. asyncpg's default prepared-statement
+    # cache crashes there with `DuplicatePreparedStatementError`. Disable it.
+    if port == 6543 or "pooler.supabase.com" in host:
+        base = _set_query_param(base, "statement_cache_size", "0")
+        base = _set_query_param(base, "prepared_statement_cache_size", "0")
     return base
 
 
